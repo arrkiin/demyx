@@ -20,6 +20,12 @@ demyx_compose() {
         [[ ! -d "$DEMYX_WP"/"$DEMYX_APP_DOMAIN" ]] && demyx_die --not-found
         shift
         DEMYX_COMPOSE="$1"
+	DEMYX_COMPOSE_OVERRIDE=""
+	if [[ "$DEMYX_APP_DEV" = true ]]; then
+	    if [[ -f $DEMYX_APP_PATH/docker-compose.dev.yml ]]; then
+ 	        DEMYX_COMPOSE_OVERRIDE="-f docker-compose.yml -f docker-compose.dev.yml "
+            fi
+	fi
         if [[ "$DEMYX_COMPOSE" = db ]]; then
             shift
             demyx_execute -v docker run -t --rm \
@@ -43,35 +49,39 @@ demyx_compose() {
             --workdir="$DEMYX_APP_PATH" \
             demyx/docker-compose rm -f
         elif [[ "$DEMYX_COMPOSE" = fr ]]; then
+            COMPOSE_ARGS="${DEMYX_COMPOSE_OVERRIDE}up -d --force-recreate --remove-orphans"
             demyx_execute -v docker run -t --rm \
             -e DOCKER_HOST=tcp://demyx_socket:2375 \
             --network=demyx_socket \
             --volumes-from=demyx \
             --workdir="$DEMYX_APP_PATH" \
-            demyx/docker-compose up -d --force-recreate --remove-orphans
+            demyx/docker-compose $COMPOSE_ARGS
         elif [[ "$DEMYX_COMPOSE" = nx ]]; then
             shift
+            COMPOSE_ARGS="${@//up/${DEMYX_COMPOSE_OVERRIDE}up}"
             demyx_execute -v docker run -t --rm \
             -e DOCKER_HOST=tcp://demyx_socket:2375 \
             --network=demyx_socket \
             --volumes-from=demyx \
             --workdir="$DEMYX_APP_PATH" \
-            demyx/docker-compose "$@" nx_"$DEMYX_APP_ID"
+            demyx/docker-compose $COMPOSE_ARGS nx_"$DEMYX_APP_ID"
         elif [[ "$DEMYX_COMPOSE" = wp ]]; then
             shift
+            COMPOSE_ARGS="${@//up/${DEMYX_COMPOSE_OVERRIDE}up}"
             demyx_execute -v docker run -t --rm \
             -e DOCKER_HOST=tcp://demyx_socket:2375 \
             --network=demyx_socket \
             --volumes-from=demyx \
             --workdir="$DEMYX_APP_PATH" \
-            demyx/docker-compose "$@" wp_"$DEMYX_APP_ID"
+            demyx/docker-compose $COMPOSE_ARGS wp_"$DEMYX_APP_ID"
         else
+	    COMPOSE_ARGS="${@//up/${DEMYX_COMPOSE_OVERRIDE}up}"
             demyx_execute -v docker run -t --rm \
             -e DOCKER_HOST=tcp://demyx_socket:2375 \
             --network=demyx_socket \
             --volumes-from=demyx \
             --workdir="$DEMYX_APP_PATH" \
-            demyx/docker-compose "$@"
+            demyx/docker-compose $COMPOSE_ARGS
         fi
     elif [[ -n "$DEMYX_GET_APP" ]]; then
         [[ ! -d "$DEMYX_APP"/"$DEMYX_TARGET" ]] && demyx_die --not-found
